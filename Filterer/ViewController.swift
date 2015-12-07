@@ -38,8 +38,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        filterValue.continuous = false
         imageView.image = UIImage(named: "scenery")!
         secondImageView.image = UIImage(named: "scenery")!
+        
         clearProperties()
         let tapGestureRecognizer = UILongPressGestureRecognizer(target: self, action: "touch:")
         tapGestureRecognizer.minimumPressDuration = 0
@@ -138,10 +140,67 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         presentViewController(cameraPicker, animated: true, completion: nil)
     }
     
+    func fixImageOrientation(src:UIImage)->UIImage {
+        
+        if src.imageOrientation == UIImageOrientation.Up {
+            return src
+        }
+        
+        var transform: CGAffineTransform = CGAffineTransformIdentity
+        
+        switch src.imageOrientation {
+        case UIImageOrientation.Down, UIImageOrientation.DownMirrored:
+            transform = CGAffineTransformTranslate(transform, src.size.width, src.size.height)
+            transform = CGAffineTransformRotate(transform, CGFloat(M_PI))
+            break
+        case UIImageOrientation.Left, UIImageOrientation.LeftMirrored:
+            transform = CGAffineTransformTranslate(transform, src.size.width, 0)
+            transform = CGAffineTransformRotate(transform, CGFloat(M_PI_2))
+            break
+        case UIImageOrientation.Right, UIImageOrientation.RightMirrored:
+            transform = CGAffineTransformTranslate(transform, 0, src.size.height)
+            transform = CGAffineTransformRotate(transform, CGFloat(-M_PI_2))
+            break
+        case UIImageOrientation.Up, UIImageOrientation.UpMirrored:
+            break
+        }
+        
+        switch src.imageOrientation {
+        case UIImageOrientation.UpMirrored, UIImageOrientation.DownMirrored:
+            CGAffineTransformTranslate(transform, src.size.width, 0)
+            CGAffineTransformScale(transform, -1, 1)
+            break
+        case UIImageOrientation.LeftMirrored, UIImageOrientation.RightMirrored:
+            CGAffineTransformTranslate(transform, src.size.height, 0)
+            CGAffineTransformScale(transform, -1, 1)
+        case UIImageOrientation.Up, UIImageOrientation.Down, UIImageOrientation.Left, UIImageOrientation.Right:
+            break
+        }
+        
+        let ctx:CGContextRef = CGBitmapContextCreate(nil, Int(src.size.width), Int(src.size.height), CGImageGetBitsPerComponent(src.CGImage), 0, CGImageGetColorSpace(src.CGImage), CGImageAlphaInfo.PremultipliedLast.rawValue)!
+        
+        CGContextConcatCTM(ctx, transform)
+        
+        switch src.imageOrientation {
+        case UIImageOrientation.Left, UIImageOrientation.LeftMirrored, UIImageOrientation.Right, UIImageOrientation.RightMirrored:
+            CGContextDrawImage(ctx, CGRectMake(0, 0, src.size.height, src.size.width), src.CGImage)
+            break
+        default:
+            CGContextDrawImage(ctx, CGRectMake(0, 0, src.size.width, src.size.height), src.CGImage)
+            break
+        }
+        
+        let cgimg:CGImageRef = CGBitmapContextCreateImage(ctx)!
+        let img:UIImage = UIImage(CGImage: cgimg)
+        
+        return img
+    }
+    
     // MARK: UIImagePickerControllerDelegate
     func imagePickerController(picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : AnyObject]) {
         dismissViewControllerAnimated(true, completion: nil)
-        if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
+        if var image = info[UIImagePickerControllerOriginalImage] as? UIImage {
+            image = fixImageOrientation(image)
             imageView.image = image
             secondImageView.image = image
             filteredImage = nil
@@ -183,7 +242,6 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         }
     }
     
-    
     @IBAction func onChangedFilterValue(sender: UISlider) {
         let value = Float(sender.value)
         var newFilter: Filter!
@@ -202,8 +260,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 return
         }
         imageProcessor.changeFilter(lastFilter, newFilter: newFilter)
-        secondImageView.image = imageProcessor.applyFilter(lastFilter)
-        
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
+        filteredImage = imageProcessor.applyFilter(lastFilter)
+        crossFadeImage(true, old_image: old_image)
     }
     
     
@@ -264,57 +324,66 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     @IBAction func rotateColor(sender: AnyObject) {
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("rotateColorFilter", newFilter: RotateColorFilter())
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
         filteredImage = imageProcessor.applyFilter("rotateColorFilter")
         lastFilter = "rotateColorFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true)
-
+        crossFadeImage(true, old_image: old_image)
     }
     
     @IBAction func setTwiceBrightness(sender: AnyObject) {
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("twiceBrightnessFilter", newFilter: Filter(redCoeff: 2, greenCoeff: 2, blueCoeff: 2))
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
         filteredImage = imageProcessor.applyFilter("twiceBrightnessFilter")
         lastFilter = "twiceBrightnessFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true)
+        crossFadeImage(true, old_image: old_image)
     }
     
     @IBAction func setHalfBrightness(sender: AnyObject) {
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("infernalFilter", newFilter: Filter(redCoeff: 1.0, greenCoeff: 2, blueCoeff: 2))
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
         filteredImage = imageProcessor.applyFilter("infernalFilter")
         lastFilter = "infernalFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true)
+        crossFadeImage(true, old_image: old_image)
     }
     
     @IBAction func setBlackAndWhite(sender: AnyObject) {
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("blackAndWhiteFilter", newFilter: BlackAndWhiteFilter(commonCoeff: 0.5))
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
         filteredImage = imageProcessor.applyFilter("blackAndWhiteFilter")
         lastFilter = "blackAndWhiteFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true)
+        crossFadeImage(true, old_image: old_image)
     }
     
     @IBAction func redIt(sender: AnyObject) {
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("moreRedFilter", newFilter: Filter(redCoeff: 2))
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
         filteredImage = imageProcessor.applyFilter("moreRedFilter")
         lastFilter = "moreRedFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true)
+        crossFadeImage(true, old_image: old_image)
     }
 
     func showSecondaryMenu() {
@@ -358,18 +427,24 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         
     }
     
-    func crossFadeImage(is_show: Bool) {
+    func crossFadeImage(is_show: Bool, old_image: UIImage! = nil) {
         if (is_show) {
             secondImageView.alpha = 0
             secondImageView.image = filteredImage
-            UIView.animateWithDuration(duration) {
+            UIView.animateWithDuration(duration, animations: {
                 self.secondImageView.alpha = 1.0
-            }
+                }){ completed in
+                    if (completed == true && old_image != nil) {
+                        self.imageView.image = old_image
+                    }
+        }
+        
         } else {
             secondImageView.alpha = 1.0
             UIView.animateWithDuration(duration) {
                 self.secondImageView.alpha = 0.0
             }
+
         }
         
     }
