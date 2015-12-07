@@ -249,7 +249,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             case "infernalFilter":
                 newFilter = Filter(redCoeff: 1.0, greenCoeff: 2*2*value, blueCoeff: 2*2*value)
             case "moreRedFilter":
-                newFilter = Filter(redCoeff: 2*2*value, greenCoeff: value)
+                newFilter = Filter(redCoeff: 2*2*value)
             case "twiceBrightnessFilter":
                 newFilter = Filter(redCoeff: 2*2*value, greenCoeff: 2*2*value, blueCoeff: 2*2*value)
             case "blackAndWhiteFilter":

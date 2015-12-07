@@ -43,7 +43,7 @@ class Filter {
 
 class RotateColorFilter: Filter {
     var addIndex: Int
-    init(nextColor: Float32 = 1) {
+    init(nextColor: Float32 = 0.5) {
         if (nextColor < 1.0 / 3.0) {
             self.addIndex = 0
         }
