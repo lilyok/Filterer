@@ -8,8 +8,13 @@
 
 import UIKit
 
-class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UICollectionViewDataSource, UICollectionViewDelegate {
     
+    let reuseIdentifier = "cell" // also enter this string as the cell identifier in the storyboard
+
+    var items: [String] = ["original", "bright", "black", "red", "infernal", "rotate"]
+    var filters: [String: UIButton] = [:]
+    var is_dragging = false
     var filteredImage: UIImage?
     var imageProcessor: CrazyFilter!
     var lastFilter = ""
@@ -19,25 +24,22 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     @IBOutlet weak var secondImageView: UIImageView!
 
     @IBOutlet var originalText: UILabel!
-    @IBOutlet var secondaryMenu: UIView!
+    
     @IBOutlet var bottomMenu: UIView!
     
+    @IBOutlet var filterMenu: UICollectionView!
     @IBOutlet weak var editFilter: UIButton!
     @IBOutlet var filterButton: UIButton!
     @IBOutlet var filterValue: UISlider!
     
     @IBOutlet var imageToggle: UIButton!
+
     
-    @IBOutlet var btnBlackAndWhite: UIButton!
     
-    @IBOutlet weak var btnHalfBrightness: UIButton!
-    
-    @IBOutlet weak var btnTwiceBrightness: UIButton!
-    
-    @IBOutlet weak var btnRotateColor: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        filterMenu.multipleTouchEnabled = true
         filterValue.continuous = false
         imageView.image = UIImage(named: "scenery")!
         secondImageView.image = UIImage(named: "scenery")!
@@ -47,7 +49,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         tapGestureRecognizer.minimumPressDuration = 0
         imageView.userInteractionEnabled = true
         imageView.addGestureRecognizer(tapGestureRecognizer)
-    }
+     }
     
     func clearProperties() {
         secondImageView.alpha = 0
@@ -62,15 +64,11 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         imageToggle.enabled = false
         filterValue.backgroundColor = UIColor.whiteColor().colorWithAlphaComponent(0.5)
         filterValue.translatesAutoresizingMaskIntoConstraints = false
-        secondaryMenu.backgroundColor = UIColor.whiteColor().colorWithAlphaComponent(0.5)
-        secondaryMenu.translatesAutoresizingMaskIntoConstraints = false
+        filterMenu.backgroundColor = UIColor.whiteColor().colorWithAlphaComponent(0.5)
+        filterMenu.translatesAutoresizingMaskIntoConstraints = false
         originalText.backgroundColor = UIColor.whiteColor().colorWithAlphaComponent(0.5)
         originalText.translatesAutoresizingMaskIntoConstraints = false
-        btnBlackAndWhite.titleLabel!.lineBreakMode = NSLineBreakMode.ByWordWrapping;
-        btnHalfBrightness.titleLabel!.lineBreakMode = NSLineBreakMode.ByWordWrapping;
-        btnTwiceBrightness.titleLabel!.lineBreakMode = NSLineBreakMode.ByWordWrapping;
-        btnRotateColor.titleLabel!.lineBreakMode = NSLineBreakMode.ByWordWrapping;
-        
+          
         
         imageProcessor = CrazyFilter(image: imageView.image!,
             dictFilters: ["infernalFilter": Filter(redCoeff: 1.0, greenCoeff: 2, blueCoeff: 2),
@@ -80,6 +78,60 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 "rotateColorFilter": RotateColorFilter()])
        
     }
+    
+
+    func collectionView(collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return self.items.count
+    }
+    
+    // make a cell for each cell index path
+    func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
+        
+        // get a reference to our storyboard cell
+        let cell = collectionView.dequeueReusableCellWithReuseIdentifier(reuseIdentifier, forIndexPath: indexPath) as! MyCollectionViewCell
+        cell.backgroundColor = UIColor.orangeColor()
+        
+        // Use the outlet in our custom class to get a reference to the UILabel in the cell
+        let btnName = self.items[indexPath.item]
+        cell.myBtn.setBackgroundImage(UIImage(named: btnName)!, forState: .Normal)
+        cell.myBtn.setBackgroundImage(UIImage(named: "selected_\(btnName)")!, forState: .Selected)
+        switch btnName{
+            case "original":
+                cell.myBtn.selected = true
+                cell.myBtn.addTarget(self, action: "setOriginal", forControlEvents: .TouchUpInside)
+                break
+            case "bright":
+                cell.myBtn.addTarget(self, action: "setTwiceBrightness", forControlEvents: .TouchUpInside)
+                break
+            case "black":
+                cell.myBtn.addTarget(self, action: "setBlackAndWhite", forControlEvents: .TouchUpInside)
+                break
+            case "red":
+                cell.myBtn.addTarget(self, action: "redIt", forControlEvents: .TouchUpInside)
+                break
+            case "infernal":
+                cell.myBtn.addTarget(self, action: "setInfernal", forControlEvents: .TouchUpInside)
+                break
+            case "rotate":
+                cell.myBtn.addTarget(self, action: "rotateColor", forControlEvents: .TouchUpInside)
+                break
+            
+            default:
+                break
+        }
+        filters[btnName] = cell.myBtn
+        
+        return cell
+    }
+    
+    // MARK: - UICollectionViewDelegate protocol
+    
+    func collectionView(collectionView: UICollectionView, didSelectItemAtIndexPath indexPath: NSIndexPath) {
+        // handle tap events
+        print("You selected cell #\(indexPath.item)!")
+    }
+
+
     
     @IBAction func touch(sender: AnyObject) {
         if(sender.state == UIGestureRecognizerState.Began){
@@ -101,7 +153,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         }
         editFilter.selected = false
         filterButton.selected = false
-        hideSecondaryMenu()
+        hideFilterMenu()
         hideFlowMenu(filterValue)
         let activityController = UIActivityViewController(activityItems: ["Check out our really cool app", secondImageView.image!], applicationActivities: nil)
         presentViewController(activityController, animated: true, completion: nil)
@@ -210,7 +262,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 imageToggle.selected = false
             }
             clearProperties()
-            hideSecondaryMenu()
+            hideFilterMenu()
             hideFlowMenu(filterValue)
         }
     }
@@ -222,7 +274,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     // MARK: Filter Menu
     @IBAction func onFilter(sender: UIButton) {
         if (sender.selected) {
-            hideSecondaryMenu()
+            hideFilterMenu()
             sender.selected = false
         } else {
             if imageToggle.selected {
@@ -237,7 +289,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             if (editFilter.selected) {
                 onFilterEdit(sender)
             }
-            showSecondaryMenu()
+            showFilterMenu()
             sender.selected = true
         }
     }
@@ -299,7 +351,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         hideFlowMenu(filterValue)
         imageToggle.selected = !imageToggle.selected
         if imageToggle.selected {
-            hideSecondaryMenu()
+            hideFilterMenu()
             filterButton.selected = false
             hideFlowMenu(filterValue)
             editFilter.selected = false
@@ -321,7 +373,35 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         }
     }
     
-    @IBAction func rotateColor(sender: AnyObject) {
+    func select_filter(selected_name: String){
+        for it in items {
+            if it != selected_name {
+                filters[it]?.selected = false
+            }
+            else {
+                filters[it]?.selected = true
+            }
+        }
+        
+    }
+    
+    @IBAction func setOriginal() {
+        select_filter("original")
+        filterValue.setValue(0.5, animated: true)
+        let old_image = imageView.image
+        imageView.image = filteredImage == nil ? old_image : filteredImage
+        filteredImage = old_image
+        lastFilter = ""
+        imageToggle.enabled = false
+        editFilter.enabled = false
+        
+        crossFadeImage(true, old_image: old_image)
+    }
+    
+    @IBAction func rotateColor() {
+        select_filter("rotate")
+        filters["rotate"]?.selected = true
+        
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("rotateColorFilter", newFilter: RotateColorFilter())
         let old_image = imageView.image
@@ -334,7 +414,8 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         crossFadeImage(true, old_image: old_image)
     }
     
-    @IBAction func setTwiceBrightness(sender: AnyObject) {
+    @IBAction func setTwiceBrightness() {
+        select_filter("bright")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("twiceBrightnessFilter", newFilter: Filter(redCoeff: 2, greenCoeff: 2, blueCoeff: 2))
         let old_image = imageView.image
@@ -347,7 +428,8 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         crossFadeImage(true, old_image: old_image)
     }
     
-    @IBAction func setHalfBrightness(sender: AnyObject) {
+    @IBAction func setInfernal() {
+        select_filter("infernal")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("infernalFilter", newFilter: Filter(redCoeff: 1.0, greenCoeff: 2, blueCoeff: 2))
         let old_image = imageView.image
@@ -360,7 +442,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         crossFadeImage(true, old_image: old_image)
     }
     
-    @IBAction func setBlackAndWhite(sender: AnyObject) {
+    
+    @IBAction func setBlackAndWhite() {
+        select_filter("black")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("blackAndWhiteFilter", newFilter: BlackAndWhiteFilter(commonCoeff: 0.5))
         let old_image = imageView.image
@@ -369,11 +453,13 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         lastFilter = "blackAndWhiteFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
-
+        
         crossFadeImage(true, old_image: old_image)
     }
-    
-    @IBAction func redIt(sender: AnyObject) {
+
+
+    @IBAction func redIt() {
+        select_filter("red")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("moreRedFilter", newFilter: Filter(redCoeff: 2))
         let old_image = imageView.image
@@ -382,24 +468,24 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         lastFilter = "moreRedFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
-
+        
         crossFadeImage(true, old_image: old_image)
     }
-
-    func showSecondaryMenu() {
+    
+    func showFilterMenu() {
         editFilter.selected = false
         hideFlowMenu(filterValue)
-        let bottomConstraint = secondaryMenu.bottomAnchor.constraintEqualToAnchor(bottomMenu.topAnchor)
-        let leftConstraint = secondaryMenu.leftAnchor.constraintEqualToAnchor(view.leftAnchor)
-        let rightConstraint = secondaryMenu.rightAnchor.constraintEqualToAnchor(view.rightAnchor)
+        let bottomConstraint = filterMenu.bottomAnchor.constraintEqualToAnchor(bottomMenu.topAnchor)
+        let leftConstraint = filterMenu.leftAnchor.constraintEqualToAnchor(view.leftAnchor)
+        let rightConstraint = filterMenu.rightAnchor.constraintEqualToAnchor(view.rightAnchor)
         
-        let heightConstraint = secondaryMenu.heightAnchor.constraintEqualToConstant(44)
+        let heightConstraint = filterMenu.heightAnchor.constraintEqualToConstant(64)
         
-        showFlowMenu(view, childView: secondaryMenu, bottomConstraint: bottomConstraint, leftConstraint: leftConstraint, rightConstraint: rightConstraint, heightConstraint: heightConstraint, finishAlpha: 0.75)
+        showFlowMenu(view, childView: filterMenu, bottomConstraint: bottomConstraint, leftConstraint: leftConstraint, rightConstraint: rightConstraint, heightConstraint: heightConstraint, finishAlpha: 0.75)
     }
 
-    func hideSecondaryMenu() {
-        hideFlowMenu(self.secondaryMenu)
+    func hideFilterMenu() {
+        hideFlowMenu(self.filterMenu)
     }
     
     func hideFlowMenu(childView: UIView) {
