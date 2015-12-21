@@ -11,14 +11,19 @@ import UIKit
 class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UICollectionViewDataSource, UICollectionViewDelegate {
     
     let reuseIdentifier = "cell" // also enter this string as the cell identifier in the storyboard
+    let queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
 
     var items: [String] = ["original", "bright", "black", "red", "infernal", "rotate"]
     var filters: [String: UIButton] = [:]
     var is_dragging = false
     var filteredImage: UIImage?
+    var originalImage: UIImage?
     var imageProcessor: CrazyFilter!
+    var height = 0
+    var width = 0
     var lastFilter = ""
     let duration = 0.6
+    var last_value: Float32 = 0.0
     @IBOutlet var imageView: UIImageView!
     
     @IBOutlet weak var secondImageView: UIImageView!
@@ -40,9 +45,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     override func viewDidLoad() {
         super.viewDidLoad()
         filterMenu.multipleTouchEnabled = true
-        filterValue.continuous = false
-        imageView.image = UIImage(named: "scenery")!
-        secondImageView.image = UIImage(named: "scenery")!
+        //filterValue.continuous = false
+        originalImage = UIImage(named: "scenery")!
+        imageView.image = originalImage
+        secondImageView.image = originalImage
         
         clearProperties()
         let tapGestureRecognizer = UILongPressGestureRecognizer(target: self, action: "touch:")
@@ -52,8 +58,12 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
      }
     
     func clearProperties() {
+        let  rgb = RGBAImage(image: imageView.image!)
+        self.width = (rgb?.width)!
+        self.height = (rgb?.height)!
+    
         secondImageView.alpha = 0
-
+      
         filterButton.selected = false
         editFilter.selected = false
         editFilter.enabled = false
@@ -76,6 +86,8 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 "twiceBrightnessFilter": Filter(redCoeff: 2, greenCoeff: 2, blueCoeff: 2),
                 "blackAndWhiteFilter": BlackAndWhiteFilter(commonCoeff: 0.5),
                 "rotateColorFilter": RotateColorFilter()])
+        
+        select_filter("original")
        
     }
     
@@ -251,10 +263,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     // MARK: UIImagePickerControllerDelegate
     func imagePickerController(picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : AnyObject]) {
         dismissViewControllerAnimated(true, completion: nil)
-        if var image = info[UIImagePickerControllerOriginalImage] as? UIImage {
-            image = fixImageOrientation(image)
-            imageView.image = image
-            secondImageView.image = image
+        if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
+            originalImage = fixImageOrientation(image)
+            imageView.image = originalImage
+            secondImageView.image = originalImage
             filteredImage = nil
             if imageToggle.selected {
                 crossFadeImage(true)
@@ -294,10 +306,14 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         }
     }
     
-    @IBAction func onChangedFilterValue(sender: UISlider) {
-        let value = Float(sender.value)
-        var newFilter: Filter!
-        switch lastFilter {
+
+    func recalculateValue(value: Float32) {
+        dispatch_async(queue, {
+            self.last_value = value
+            
+            var newFilter: Filter!
+            
+            switch self.lastFilter {
             case "infernalFilter":
                 newFilter = Filter(redCoeff: 1.0, greenCoeff: 2*2*value, blueCoeff: 2*2*value)
             case "moreRedFilter":
@@ -310,12 +326,39 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 newFilter = RotateColorFilter(nextColor: value)
             default:
                 return
+            }
+            self.imageProcessor.changeFilter(self.lastFilter, newFilter: newFilter)
+            self.filteredImage = self.imageProcessor.applyFilter(self.lastFilter)
+            dispatch_async(dispatch_get_main_queue(), {
+                print("draw")
+                self.crossFadeImage(true, old_image: self.originalImage)
+            })
+        })
+
+    }
+    
+    
+    @IBAction func touchUpOutsideValue(sender: UISlider) {
+        recalculateValue(Float32(sender.value))
+    }
+    
+    @IBAction func touchUpInsideValue(sender: UISlider) {
+        recalculateValue(Float32(sender.value))
+    }
+    
+    @IBAction func touchDownValue(sender: UISlider) {
+        recalculateValue(Float32(sender.value))
+    }
+
+    @IBAction func onChangedFilterValue(sender: UISlider) {
+        let value = Float32(sender.value)
+        let delta_value = value - last_value
+        
+        print("Starting value = \(value) last = \(last_value) delta=\(delta_value) > \(0.000000015 * Float32(width) * Float32(height))")
+
+        if abs(delta_value) > 0.000000015 * Float32(width) * Float32(height) {
+            recalculateValue(value)
         }
-        imageProcessor.changeFilter(lastFilter, newFilter: newFilter)
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
-        filteredImage = imageProcessor.applyFilter(lastFilter)
-        crossFadeImage(true, old_image: old_image)
     }
     
     
@@ -388,14 +431,13 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     @IBAction func setOriginal() {
         select_filter("original")
         filterValue.setValue(0.5, animated: true)
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
-        filteredImage = old_image
+        imageView.image = filteredImage == nil ? originalImage : filteredImage
+        filteredImage = nil
         lastFilter = ""
         imageToggle.enabled = false
         editFilter.enabled = false
         
-        crossFadeImage(true, old_image: old_image)
+        crossFadeImage(true, old_image: originalImage)
     }
     
     @IBAction func rotateColor() {
@@ -404,42 +446,39 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("rotateColorFilter", newFilter: RotateColorFilter())
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
+        imageView.image = filteredImage == nil ? originalImage : filteredImage
         filteredImage = imageProcessor.applyFilter("rotateColorFilter")
         lastFilter = "rotateColorFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true, old_image: old_image)
+        crossFadeImage(true, old_image: originalImage)
     }
     
     @IBAction func setTwiceBrightness() {
         select_filter("bright")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("twiceBrightnessFilter", newFilter: Filter(redCoeff: 2, greenCoeff: 2, blueCoeff: 2))
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
+        imageView.image = filteredImage == nil ? originalImage : filteredImage
         filteredImage = imageProcessor.applyFilter("twiceBrightnessFilter")
         lastFilter = "twiceBrightnessFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true, old_image: old_image)
+        crossFadeImage(true, old_image: originalImage)
     }
     
     @IBAction func setInfernal() {
         select_filter("infernal")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("infernalFilter", newFilter: Filter(redCoeff: 1.0, greenCoeff: 2, blueCoeff: 2))
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
+        imageView.image = filteredImage == nil ? originalImage : filteredImage
         filteredImage = imageProcessor.applyFilter("infernalFilter")
         lastFilter = "infernalFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
 
-        crossFadeImage(true, old_image: old_image)
+        crossFadeImage(true, old_image: originalImage)
     }
     
     
@@ -447,14 +486,13 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         select_filter("black")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("blackAndWhiteFilter", newFilter: BlackAndWhiteFilter(commonCoeff: 0.5))
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
+        imageView.image = filteredImage == nil ? originalImage : filteredImage
         filteredImage = imageProcessor.applyFilter("blackAndWhiteFilter")
         lastFilter = "blackAndWhiteFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
         
-        crossFadeImage(true, old_image: old_image)
+        crossFadeImage(true, old_image: originalImage)
     }
 
 
@@ -462,14 +500,13 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         select_filter("red")
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("moreRedFilter", newFilter: Filter(redCoeff: 2))
-        let old_image = imageView.image
-        imageView.image = filteredImage == nil ? old_image : filteredImage
+        imageView.image = filteredImage == nil ? originalImage : filteredImage
         filteredImage = imageProcessor.applyFilter("moreRedFilter")
         lastFilter = "moreRedFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
         
-        crossFadeImage(true, old_image: old_image)
+        crossFadeImage(true, old_image: originalImage)
     }
     
     func showFilterMenu() {
@@ -515,6 +552,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
     func crossFadeImage(is_show: Bool, old_image: UIImage! = nil) {
         if (is_show) {
+            self.imageView.image = secondImageView.image
             secondImageView.alpha = 0
             secondImageView.image = filteredImage
             UIView.animateWithDuration(duration, animations: {
@@ -523,10 +561,11 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                     if (completed == true && old_image != nil) {
                         self.imageView.image = old_image
                     }
-        }
+            }
         
         } else {
             secondImageView.alpha = 1.0
+            self.imageView.image = originalImage
             UIView.animateWithDuration(duration) {
                 self.secondImageView.alpha = 0.0
             }

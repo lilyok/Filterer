@@ -43,16 +43,21 @@ class Filter {
 
 class RotateColorFilter: Filter {
     var addIndex: Int
+    var coefs: [Float32] = [1.0, 1.0, 1.0]
     init(nextColor: Float32 = 0.5) {
+        var deltaColor = nextColor
         if (nextColor < 1.0 / 3.0) {
             self.addIndex = 0
         }
         else if (nextColor > 2.0 / 3.0) {
+            deltaColor -= 2.0 / 3.0
             self.addIndex = -1
         }
         else {
+            deltaColor -= 1.0 / 3.0
             addIndex = 1
         }
+        self.coefs[Int(nextColor*10) % 3] -= deltaColor
         
         super.init()
     }
@@ -67,18 +72,18 @@ class RotateColorFilter: Filter {
 
                 if (addIndex == 1) {
                     let blue = currentPixel.blue
-                    currentPixel.blue = currentPixel.green
-                    currentPixel.green = currentPixel.red
-                    currentPixel.red = blue
+                    currentPixel.blue = UInt8(Float32(currentPixel.green) * coefs[2])
+                    currentPixel.green = UInt8(Float32(currentPixel.red) * coefs[1])
+                    currentPixel.red = UInt8(Float32(blue) * coefs[0])
                 } else if (addIndex == -1) {
                     let green = currentPixel.green
-                    currentPixel.green = currentPixel.blue
-                    currentPixel.blue = currentPixel.red
-                    currentPixel.red = green
+                    currentPixel.green = UInt8(Float32(currentPixel.blue) * coefs[1])
+                    currentPixel.blue = UInt8(Float32(currentPixel.red) * coefs[2])
+                    currentPixel.red = UInt8(Float32(green) * coefs[0])
                 } else {
-                    let blue = currentPixel.blue
-                    currentPixel.blue = currentPixel.red
-                    currentPixel.red = blue
+                    let blue = UInt8(Float32(currentPixel.blue) * coefs[2])
+                    currentPixel.blue = UInt8(Float32(currentPixel.red) * coefs[0])
+                    currentPixel.red = UInt8(Float32(blue) * coefs[1])
                 }
                 
                 rgbaImage.pixels[index] = currentPixel

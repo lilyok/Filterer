@@ -178,6 +178,9 @@
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                     <connections>
                         <action selector="onChangedFilterValue:" destination="BYZ-38-t0r" eventType="valueChanged" id="Kuw-tQ-apd"/>
+                        <action selector="touchDownValue:" destination="BYZ-38-t0r" eventType="touchDown" id="ZDS-d6-urm"/>
+                        <action selector="touchUpInsideValue:" destination="BYZ-38-t0r" eventType="touchUpInside" id="rp3-PF-shC"/>
+                        <action selector="touchUpOutsideValue:" destination="BYZ-38-t0r" eventType="touchUpOutside" id="Nn1-Y5-I0s"/>
                     </connections>
                 </slider>
                 <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" id="Eg1-zq-wpe">
