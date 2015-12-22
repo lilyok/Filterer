@@ -309,9 +309,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
 
     func recalculateValue(value: Float32) {
+        ViewController.numOfCalculate++
+        let idCalculate = ViewController.numOfCalculate
         dispatch_async(queue, {
-            ViewController.numOfCalculate++
-            let idCalculate = ViewController.numOfCalculate
 //            print("num = \(ViewController.numOfCalculate)")
 
             self.last_value = value
