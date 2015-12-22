@@ -24,9 +24,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     var lastFilter = ""
     let duration = 0.6
     var last_value: Float32 = 0.0
+    static var numOfCalculate: Int = -1
     @IBOutlet var imageView: UIImageView!
     
-    @IBOutlet weak var secondImageView: UIImageView!
+    @IBOutlet var secondImageView: UIImageView!
 
     @IBOutlet var originalText: UILabel!
     
@@ -309,6 +310,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
 
     func recalculateValue(value: Float32) {
         dispatch_async(queue, {
+            ViewController.numOfCalculate++
+            let idCalculate = ViewController.numOfCalculate
+//            print("num = \(ViewController.numOfCalculate)")
+
             self.last_value = value
             
             var newFilter: Filter!
@@ -328,10 +333,15 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
                 return
             }
             self.imageProcessor.changeFilter(self.lastFilter, newFilter: newFilter)
-            self.filteredImage = self.imageProcessor.applyFilter(self.lastFilter)
+            self.filteredImage = self.imageProcessor.applyFilter(idCalculate, nameOfFilter: self.lastFilter)
             dispatch_async(dispatch_get_main_queue(), {
-                print("draw")
-                self.crossFadeImage(true, old_image: self.originalImage)
+//                print("id = \(idCalculate), num = \(ViewController.numOfCalculate)")
+
+                if (idCalculate == ViewController.numOfCalculate) {
+                    ViewController.numOfCalculate = -1
+                    self.crossFadeImage(true, old_image: self.originalImage)
+                }
+                
             })
         })
 
@@ -354,8 +364,6 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         let value = Float32(sender.value)
         let delta_value = value - last_value
         
-        print("Starting value = \(value) last = \(last_value) delta=\(delta_value) > \(0.000000015 * Float32(width) * Float32(height))")
-
         if abs(delta_value) > 0.000000015 * Float32(width) * Float32(height) {
             recalculateValue(value)
         }
@@ -432,7 +440,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         select_filter("original")
         filterValue.setValue(0.5, animated: true)
         imageView.image = filteredImage == nil ? originalImage : filteredImage
-        filteredImage = nil
+        filteredImage = originalImage
         lastFilter = ""
         imageToggle.enabled = false
         editFilter.enabled = false
@@ -447,7 +455,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("rotateColorFilter", newFilter: RotateColorFilter())
         imageView.image = filteredImage == nil ? originalImage : filteredImage
-        filteredImage = imageProcessor.applyFilter("rotateColorFilter")
+        filteredImage = imageProcessor.applyFilter(ViewController.numOfCalculate, nameOfFilter: "rotateColorFilter")
         lastFilter = "rotateColorFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
@@ -460,7 +468,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("twiceBrightnessFilter", newFilter: Filter(redCoeff: 2, greenCoeff: 2, blueCoeff: 2))
         imageView.image = filteredImage == nil ? originalImage : filteredImage
-        filteredImage = imageProcessor.applyFilter("twiceBrightnessFilter")
+        filteredImage = imageProcessor.applyFilter(ViewController.numOfCalculate, nameOfFilter: "twiceBrightnessFilter")
         lastFilter = "twiceBrightnessFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
@@ -473,7 +481,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("infernalFilter", newFilter: Filter(redCoeff: 1.0, greenCoeff: 2, blueCoeff: 2))
         imageView.image = filteredImage == nil ? originalImage : filteredImage
-        filteredImage = imageProcessor.applyFilter("infernalFilter")
+        filteredImage = imageProcessor.applyFilter(ViewController.numOfCalculate, nameOfFilter: "infernalFilter")
         lastFilter = "infernalFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
@@ -487,7 +495,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("blackAndWhiteFilter", newFilter: BlackAndWhiteFilter(commonCoeff: 0.5))
         imageView.image = filteredImage == nil ? originalImage : filteredImage
-        filteredImage = imageProcessor.applyFilter("blackAndWhiteFilter")
+        filteredImage = imageProcessor.applyFilter(ViewController.numOfCalculate, nameOfFilter: "blackAndWhiteFilter")
         lastFilter = "blackAndWhiteFilter"
         imageToggle.enabled = true
         editFilter.enabled = true
@@ -501,7 +509,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         filterValue.setValue(0.5, animated: true)
         imageProcessor.changeFilter("moreRedFilter", newFilter: Filter(redCoeff: 2))
         imageView.image = filteredImage == nil ? originalImage : filteredImage
-        filteredImage = imageProcessor.applyFilter("moreRedFilter")
+        filteredImage = imageProcessor.applyFilter(ViewController.numOfCalculate, nameOfFilter: "moreRedFilter")
         lastFilter = "moreRedFilter"
         imageToggle.enabled = true
         editFilter.enabled = true

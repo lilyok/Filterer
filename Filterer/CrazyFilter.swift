@@ -21,21 +21,28 @@ class Filter {
     }
     
     
-    func filtered(image: UIImage)-> UIImage {
+    func filtered(idCalculate: Int, image: UIImage)-> UIImage {
         let rgbaImage = RGBAImage(image: image)!
         for y in 0..<rgbaImage.height {
             for x in 0..<rgbaImage.width {
+                
+                if (ViewController.numOfCalculate != idCalculate) {
+//                    print("early returned \(idCalculate)")
+                    return image
+                }
+                
                 let index = rgbaImage.width * y + x
-                var currentPixel = rgbaImage.pixels[index]
+                var currentPixel = rgbaImage.pixels.buffer[index]
                 
                 currentPixel.red = UInt8(Float32(currentPixel.red) * redCoeff > 255 ? Float(255.0) : (Float32(currentPixel.red) * redCoeff))
                 currentPixel.green = UInt8((Float32(currentPixel.green) * greenCoeff) > 255 ? 255 : (Float32(currentPixel.green) * greenCoeff))
                 currentPixel.blue = UInt8((Float32(currentPixel.blue) * blueCoeff) > 255 ? 255 : (Float32(currentPixel.blue) * blueCoeff))
                 
-                rgbaImage.pixels[index] = currentPixel
+                rgbaImage.pixels.buffer[index] = currentPixel
             }
         }
-        
+//        print("returned \(idCalculate)")
+
         return rgbaImage.toUIImage()!
     }
     
@@ -63,12 +70,16 @@ class RotateColorFilter: Filter {
     }
     
     override
-    func filtered(image: UIImage)-> UIImage {
+    func filtered(idCalculate: Int, image: UIImage)-> UIImage {
         let rgbaImage = RGBAImage(image: image)!
         for y in 0..<rgbaImage.height {
             for x in 0..<rgbaImage.width {
+                if (ViewController.numOfCalculate != idCalculate) {
+//                    print("early returned \(idCalculate)")
+                    return image
+                }
                 let index = rgbaImage.width * y + x
-                var currentPixel = rgbaImage.pixels[index]
+                var currentPixel = rgbaImage.pixels.buffer[index]
 
                 if (addIndex == 1) {
                     let blue = currentPixel.blue
@@ -86,10 +97,11 @@ class RotateColorFilter: Filter {
                     currentPixel.red = UInt8(Float32(blue) * coefs[1])
                 }
                 
-                rgbaImage.pixels[index] = currentPixel
+                rgbaImage.pixels.buffer[index] = currentPixel
             }
         }
         
+//        print("returned \(idCalculate)")
         return rgbaImage.toUIImage()!
     }
 }
@@ -102,12 +114,16 @@ class BlackAndWhiteFilter: Filter {
     }
     
     override
-    func filtered(image: UIImage)-> UIImage {
+    func filtered(idCalculate: Int, image: UIImage)-> UIImage {
         let rgbaImage = RGBAImage(image: image)!
         for y in 0..<rgbaImage.height {
             for x in 0..<rgbaImage.width {
+                if (ViewController.numOfCalculate != idCalculate) {
+//                    print("early returned \(idCalculate)")
+                    return image
+                }
                 let index = rgbaImage.width * y + x
-                var currentPixel = rgbaImage.pixels[index]
+                var currentPixel = rgbaImage.pixels.buffer[index]
                 
                 if (UInt16(currentPixel.red) + UInt16(currentPixel.green) + UInt16(currentPixel.blue) > 381) {
                     var color = Float32(currentPixel.red/3 + currentPixel.green/3 + currentPixel.blue/3) * coeff
@@ -128,10 +144,11 @@ class BlackAndWhiteFilter: Filter {
                     currentPixel.blue = UInt8(color)
                 }
                 
-                rgbaImage.pixels[index] = currentPixel
+                rgbaImage.pixels.buffer[index] = currentPixel
             }
         }
-        
+//        print("returned \(idCalculate)")
+
         return rgbaImage.toUIImage()!
     }
 }
@@ -139,11 +156,9 @@ class BlackAndWhiteFilter: Filter {
 
 class CrazyFilter {
     let sourceImg: UIImage
-    var destinationImg: UIImage
     var filters: [String: Filter]
     init(image: UIImage, dictFilters: [String: Filter]){
         sourceImg = image
-        destinationImg = sourceImg
         filters = dictFilters
     }
     
@@ -155,21 +170,21 @@ class CrazyFilter {
     
     
     // You can to apply list of the filters
-    func applyFilters(namesOfFilters: [String])-> UIImage {
-        destinationImg = sourceImg
+    func applyFilters(idCalculate: Int, namesOfFilters: [String])-> UIImage {
+        var destinationImg = sourceImg
         for name in namesOfFilters {
             if let filter = filters[name] {
-                destinationImg = filter.filtered(destinationImg)
+                destinationImg = filter.filtered(idCalculate,image: destinationImg)
             }
         }
         return destinationImg
     }
     
     //you can apply one of the filters
-    func applyFilter(nameOfFilter: String)-> UIImage {
-        destinationImg = sourceImg
+    func applyFilter(idCalculate: Int, nameOfFilter: String)-> UIImage {
+       var  destinationImg = sourceImg
         if let filter = filters[nameOfFilter] {
-            destinationImg = filter.filtered(destinationImg)
+            destinationImg = filter.filtered(idCalculate, image: destinationImg)
         }
         return destinationImg
     }

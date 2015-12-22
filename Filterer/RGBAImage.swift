@@ -40,8 +40,25 @@ public struct Pixel {
     }
 }
 
+public class AutoreleasingMutableBufferPointer<T> {
+    public var buffer: UnsafeMutableBufferPointer<T>
+    
+    public init(start pointer: UnsafeMutablePointer<T>, count length: Int) {
+        self.buffer = UnsafeMutableBufferPointer<T>(start: pointer, count: length)
+    }
+    
+    public init(buffer: UnsafeMutableBufferPointer<T>) {
+        self.buffer = buffer
+    }
+    
+    deinit {
+        self.buffer.baseAddress.destroy(buffer.count)
+        self.buffer.baseAddress.dealloc(buffer.count)
+    }
+}
+
 public struct RGBAImage {
-    public var pixels: UnsafeMutableBufferPointer<Pixel>
+    public var pixels: AutoreleasingMutableBufferPointer<Pixel>
     
     public var width: Int
     public var height: Int
@@ -64,7 +81,7 @@ public struct RGBAImage {
         guard let imageContext = CGBitmapContextCreate(imageData, width, height, 8, bytesPerRow, colorSpace, bitmapInfo) else { return nil }
         CGContextDrawImage(imageContext, CGRect(origin: CGPointZero, size: image.size), cgImage)
 
-        pixels = UnsafeMutableBufferPointer<Pixel>(start: imageData, count: width * height)
+        pixels = AutoreleasingMutableBufferPointer<Pixel>(start: imageData, count: width * height)
     }
     
     public func toUIImage() -> UIImage? {
@@ -74,7 +91,7 @@ public struct RGBAImage {
         
         let bytesPerRow = width * 4
 
-        let imageContext = CGBitmapContextCreateWithData(pixels.baseAddress, width, height, 8, bytesPerRow, colorSpace, bitmapInfo, nil, nil)
+        let imageContext = CGBitmapContextCreateWithData(pixels.buffer.baseAddress, width, height, 8, bytesPerRow, colorSpace, bitmapInfo, nil, nil)
         
         guard let cgImage = CGBitmapContextCreateImage(imageContext) else {return nil}
         let image = UIImage(CGImage: cgImage)
