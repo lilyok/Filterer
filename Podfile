@@ -1,0 +1,1 @@
+pod "VK-ios-sdk"

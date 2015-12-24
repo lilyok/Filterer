@@ -45,6 +45,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         filterMenu.multipleTouchEnabled = true
         //filterValue.continuous = false
         originalImage = UIImage(named: "scenery")!
@@ -168,7 +169,12 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         filterButton.selected = false
         hideFilterMenu()
         hideFlowMenu(filterValue)
-        let activityController = UIActivityViewController(activityItems: ["Check out our really cool app", secondImageView.image!], applicationActivities: nil)
+        
+        let sharedImage = filteredImage != nil ? filteredImage : originalImage
+        
+        //when vk 2.4 will release, to delete all about VKActivity
+        let activityController = UIActivityViewController(activityItems: [sharedImage!, NSURL.init(fileURLWithPath: "https://vk.com/wall1")], applicationActivities: [VKActivity.init()])
+
         presentViewController(activityController, animated: true, completion: nil)
     }
     
