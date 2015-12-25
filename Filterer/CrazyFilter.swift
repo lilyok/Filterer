@@ -50,21 +50,21 @@ class Filter {
 
 class RotateColorFilter: Filter {
     var addIndex: Int
-    var coefs: [Float32] = [1.0, 1.0, 1.0]
+    var deltaColor: Float32 = 1.0
     init(nextColor: Float32 = 0.5) {
-        var deltaColor = nextColor
+        self.deltaColor = nextColor
         if (nextColor < 1.0 / 3.0) {
-            self.addIndex = 0
-        }
-        else if (nextColor > 2.0 / 3.0) {
-            deltaColor -= 2.0 / 3.0
             self.addIndex = -1
         }
-        else {
-            deltaColor -= 1.0 / 3.0
-            addIndex = 1
+        else if (nextColor > 2.0 / 3.0) {
+            self.deltaColor -= 2.0 / 3.0
+            self.addIndex = 1
         }
-        self.coefs[Int(nextColor*10) % 3] -= deltaColor
+        else {
+            self.deltaColor -= 1.0 / 3.0
+            addIndex = 0
+        }
+        self.deltaColor = deltaColor*5.0
         
         super.init()
     }
@@ -81,20 +81,39 @@ class RotateColorFilter: Filter {
                 let index = rgbaImage.width * y + x
                 var currentPixel = rgbaImage.pixels.buffer[index]
 
-                if (addIndex == 1) {
-                    let blue = currentPixel.blue
-                    currentPixel.blue = UInt8(Float32(currentPixel.green) * coefs[2])
-                    currentPixel.green = UInt8(Float32(currentPixel.red) * coefs[1])
-                    currentPixel.red = UInt8(Float32(blue) * coefs[0])
-                } else if (addIndex == -1) {
-                    let green = currentPixel.green
-                    currentPixel.green = UInt8(Float32(currentPixel.blue) * coefs[1])
-                    currentPixel.blue = UInt8(Float32(currentPixel.red) * coefs[2])
-                    currentPixel.red = UInt8(Float32(green) * coefs[0])
+                var green = Float32(currentPixel.green)
+                var blue = Float32(currentPixel.blue)
+                var red = Float32(currentPixel.red)
+                
+                let mean = ((green + blue + red) / 3.0)
+                
+                if (addIndex == -1) {
+                    if (red < (mean * deltaColor) % 255) {
+                        green = mean
+                        blue = mean
+                        red = mean
+                    }
+                    currentPixel.blue = UInt8(green > 255 ? Float(255.0) : green)
+                    currentPixel.green = UInt8(blue > 255 ? Float(255.0) : blue)
+                    currentPixel.red = UInt8(red > 255 ? Float(255.0) : red)
+                } else if (addIndex == 0) {
+                    if (green < (mean * deltaColor) % 255) {
+                        green = mean
+                        blue = mean 
+                        red = mean
+                    }
+                    currentPixel.blue = UInt8(red > 255 ? Float(255.0) : red)
+                    currentPixel.red = UInt8(blue > 255 ? Float(255.0) : blue)
+                    currentPixel.green = UInt8(green > 255 ? Float(255.0) : green)
                 } else {
-                    let blue = UInt8(Float32(currentPixel.blue) * coefs[2])
-                    currentPixel.blue = UInt8(Float32(currentPixel.red) * coefs[0])
-                    currentPixel.red = UInt8(Float32(blue) * coefs[1])
+                    if (blue < (mean * deltaColor) % 255) {
+                        green = mean
+                        blue = mean 
+                        red = mean
+                    }
+                    currentPixel.green = UInt8(red > 255 ? Float(255.0) : red)
+                    currentPixel.red = UInt8(green > 255 ? Float(255.0) : green)
+                    currentPixel.blue = UInt8(blue > 255 ? Float(255.0) : blue)
                 }
                 
                 rgbaImage.pixels.buffer[index] = currentPixel
